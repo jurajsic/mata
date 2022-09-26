@@ -45,7 +45,7 @@ using NoodleSequence = std::vector<Noodle>; ///< A sequence of noodles.
  * @param[in] include_empty Whether to also include empty noodles.
  * @return A list of all (non-empty) noodles.
  */
-NoodleSequence noodlify(const SegNfa& aut, Symbol epsilon, bool include_empty = false);
+NoodleSequence noodlify(const SegNfa& aut, Symbol epsilon, std::vector<std::vector<size_t>> variableLocations, bool include_empty = false);
 
 /**
  * @brief Create noodles for left and right side of equation.
@@ -68,6 +68,7 @@ NoodleSequence noodlify(const SegNfa& aut, Symbol epsilon, bool include_empty = 
  * @return A list of all (non-empty) noodles.
  */
 NoodleSequence noodlify_for_equation(const AutRefSequence& left_automata, const Nfa& right_automaton,
+std::vector<std::vector<size_t>> variableLocations,
                                      bool include_empty = false, const StringDict& params = {{"reduce", "false"}});
 
 /**
@@ -91,7 +92,9 @@ NoodleSequence noodlify_for_equation(const AutRefSequence& left_automata, const 
  * @return A list of all (non-empty) noodles.
  */
 NoodleSequence noodlify_for_equation(const AutPtrSequence& left_automata, const Nfa& right_automaton,
-                                     bool include_empty = false, const StringDict& params = {{"reduce", "false"}});
+                                     std::vector<std::vector<size_t>> variableLocations,
+                                     bool include_empty = false, const StringDict& params = {{"reduce", "false"}}
+                                     );
 } // SegNfa
 } // Nfa
 } // Mata

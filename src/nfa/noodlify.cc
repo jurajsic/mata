@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+#include <iostream>
+
 #include <mata/nfa.hh>
 #include <mata/noodlify.hh>
 #include <mata/util.hh>
@@ -41,7 +43,7 @@ size_t get_num_of_permutations(const SegNfa::Segmentation::EpsilonDepthTransitio
 
 } // namespace
 
-SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon, bool include_empty) {
+SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon, std::vector<std::vector<size_t>> variableLocations, bool include_empty) {
     Segmentation segmentation{ aut, epsilon };
     const auto& segments{ segmentation.get_segments_raw() };
 
@@ -104,6 +106,164 @@ SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon,
         }
     }
 
+    ///// STUFF FOR PRINTING AFA ///////
+
+    //aut.print_to_DOT(std::cout);
+    std::ostream &afaOutput = std::cerr;
+
+    afaOutput << "@AFA-explicit" << std::endl
+              //<< "%Alphabet-chars" << std::endl
+              << "%Alphabet-numbers" << std::endl
+              << "%Tracks-auto" << std::endl;
+
+    afaOutput << "%Initial (";
+    bool isThisFirstState = true;
+    for (State init : aut.initialstates) {
+        if (isThisFirstState) {
+            isThisFirstState = false;
+        } else {
+            afaOutput << " | ";
+        }
+        afaOutput << "q" << init;
+    }
+    afaOutput << ")";
+
+    std::vector<StateSet> segmentReachableStates = {segments[0].get_reachable_states()};
+    std::vector<std::vector<State>> initialStatesNoodles = { std::vector<State>{} };
+    std::vector<State> allSegmentsInitialStates;
+    std::unordered_map<State, StateSet> initStateToPreviousNonFinalStates;
+    for (auto iter = segments.begin() + 1; iter != segments.end(); ++iter) {
+
+        std::vector<std::vector<State>> oldInitialStatesNoodles = initialStatesNoodles;
+        initialStatesNoodles = std::vector<std::vector<State>>{};
+        for (State init : iter->initialstates) {
+            initStateToPreviousNonFinalStates[init] = segmentReachableStates.back();
+            allSegmentsInitialStates.push_back(init);
+            for (std::vector<State> oldNoodle : oldInitialStatesNoodles) {
+                oldNoodle.push_back(init);
+                initialStatesNoodles.push_back(oldNoodle);
+            }
+        }
+
+        segmentReachableStates.push_back(iter->get_reachable_states());
+    }
+
+    afaOutput << " & (";
+    bool isFirstNoodle = true;
+    for (const auto &initialStatesNoodle : initialStatesNoodles) {
+        if (isFirstNoodle) {
+            isFirstNoodle = false;
+        } else {
+            afaOutput << " | ";
+        }
+
+        afaOutput << "(";
+        bool isFirstInitState = true;
+        for (State init : initialStatesNoodle) {
+            if (isFirstInitState) {
+                isFirstInitState = false;
+            } else {
+                afaOutput << " & ";
+            }
+            afaOutput << "q" << init << " & " << "q" << init << "'";
+        }
+        afaOutput << ")";
+    }
+    afaOutput << ")" << std::endl;
+
+    for (const auto &elem : segmentation.get_epsilon_depths()) {
+        for (const auto &tran : elem.second) {
+            initStateToPreviousNonFinalStates[tran.tgt].remove(tran.src);
+        }
+    }
+
+    auto stateSetMinus = [](const StateSet &lhs, const StateSet &rhs) {
+        StateSet ret;
+        for (State s : lhs) {
+            if (rhs.count(s) == 0) {
+                ret.push_back(s);
+            }
+        }
+        return ret;
+    };
+
+    afaOutput << "%Final ";
+    const StateSet finalSegNonFinalStates = stateSetMinus(segmentReachableStates.back(), segments.back().finalstates);
+    if (finalSegNonFinalStates.size() == 0) {
+        afaOutput << "true";
+    } else {
+        afaOutput << "(";
+        bool isThisFirstState = true;
+        for (State nonFinal : finalSegNonFinalStates) {
+            if (isThisFirstState) {
+                isThisFirstState = false;
+            } else {
+                afaOutput << " & ";
+            }
+            afaOutput << "!q" << nonFinal;
+        }
+        afaOutput << ")";
+    }
+
+    for (const auto &elem : initStateToPreviousNonFinalStates) {
+        if (elem.second.size() == 0) {
+            continue;
+        }
+    //for (State init : allSegmentsInitialStates) {
+        afaOutput << " & (!q" << elem.first << "' | (";
+        bool isFirst = true;
+        for (State s : elem.second) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                afaOutput << " & ";
+            }
+            afaOutput << "!q" << s;
+        }
+        afaOutput << "))";
+    }
+    afaOutput << std::endl;
+
+    auto numOfVars = variableLocations.size();
+    for (size_t varNum = 0; varNum < numOfVars; ++varNum) {
+        for (auto varLoc : variableLocations[varNum]) {
+            const Nfa &varAut = segments[varLoc];
+            for (State s : segmentReachableStates[varLoc]) {
+                afaOutput << "q" << s << " ";
+                bool isFirstTran = true;
+                for (const TransSymbolStates &tran : varAut.get_transitions_from(s)) {
+                    if (isFirstTran) {
+                        isFirstTran = false;
+                    } else {
+                        afaOutput << " | ";
+                    }
+                    //afaOutput << "(" << (char) tran.symbol << "@t" << varNum << " & (";
+                    afaOutput << "(" << tran.symbol << "@t" << varNum << " & (";
+                    bool isFirstStateTo = true;
+                    for (State r : tran.states_to) {
+                        if (isFirstStateTo) {
+                            afaOutput << "q" << r;
+                            isFirstStateTo = false;
+                        } else {
+                            afaOutput << " | q" << r;
+                        }
+                        
+                    }
+                    afaOutput << "))";
+                }
+                afaOutput << std::endl;
+            }
+        }
+    }
+
+    for (State init : allSegmentsInitialStates) {
+        afaOutput << "q" << init << "' " << "q" << init << "'" << std::endl;
+    }
+
+    afaOutput << "#AFA was fully printed" << std::endl;
+
+    ///// END STUFF FOR PRINTING AFA ///////
+
     const auto& epsilon_depths{ segmentation.get_epsilon_depths() };
 
     // Compute number of all combinations of ε-transitions with one ε-transitions from each depth.
@@ -164,6 +324,7 @@ SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon,
 }
 
 SegNfa::NoodleSequence SegNfa::noodlify_for_equation(const AutRefSequence& left_automata, const Nfa& right_automaton,
+std::vector<std::vector<size_t>> variableLocations,
                                                      bool include_empty, const StringDict& params) {
     const auto left_automata_begin{ left_automata.begin() };
     const auto left_automata_end{ left_automata.end() };
@@ -202,11 +363,13 @@ SegNfa::NoodleSequence SegNfa::noodlify_for_equation(const AutRefSequence& left_
             product_pres_eps_trans = invert(product_pres_eps_trans);
         }
     }
-    return noodlify(product_pres_eps_trans, epsilon, include_empty);
+    return noodlify(product_pres_eps_trans, epsilon, variableLocations, include_empty);
 }
 
 SegNfa::NoodleSequence SegNfa::noodlify_for_equation(const AutPtrSequence& left_automata, const Nfa& right_automaton,
-                                                     bool include_empty, const StringDict& params) {
+                                                     std::vector<std::vector<size_t>> variableLocations,
+                                                     bool include_empty, const StringDict& params
+                                                     ) {
     const auto left_automata_begin{ left_automata.begin() };
     const auto left_automata_end{ left_automata.end() };
 
@@ -253,5 +416,5 @@ SegNfa::NoodleSequence SegNfa::noodlify_for_equation(const AutPtrSequence& left_
             product_pres_eps_trans = invert(product_pres_eps_trans);
         }
     }
-    return noodlify(product_pres_eps_trans, epsilon, include_empty);
+    return noodlify(product_pres_eps_trans, epsilon, variableLocations, include_empty);
 }

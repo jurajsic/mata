@@ -742,34 +742,34 @@ cdef class Nfa:
         mata.concatenate(result.thisptr.get(), dereference(lhs.thisptr.get()), dereference(rhs.thisptr.get()))
         return result
 
+    # @classmethod
+    # def noodlify(cls, Nfa aut, Symbol symbol, include_empty = False):
+    #     """
+    #     Create noodles from segment automaton.
+
+    #     Segment automaton is a chain of finite automata (segments) connected via ε-transitions.
+    #     A noodle is a copy of the segment automaton with exactly one ε-transition between each two consecutive segments.
+
+    #     :param: Nfa aut: Segment automaton to noodlify.
+    #     :param: Symbol epsilon: Epsilon symbol to noodlify for.
+    #     :param: bool include_empty: Whether to also include empty noodles.
+    #     :return: List of automata: A list of all (non-empty) noodles.
+    #     """
+    #     noodle_segments = []
+    #     cdef NoodleSequence c_noodle_segments = mata.noodlify(dereference(aut.thisptr.get()), symbol, include_empty)
+    #     for c_noodle in c_noodle_segments:
+    #         noodle = []
+    #         for c_noodle_segment in c_noodle:
+    #             noodle_segment = Nfa()
+    #             noodle_segment.thisptr = c_noodle_segment
+    #             noodle.append(noodle_segment)
+
+    #         noodle_segments.append(noodle)
+
+    #     return noodle_segments
+
     @classmethod
-    def noodlify(cls, Nfa aut, Symbol symbol, include_empty = False):
-        """
-        Create noodles from segment automaton.
-
-        Segment automaton is a chain of finite automata (segments) connected via ε-transitions.
-        A noodle is a copy of the segment automaton with exactly one ε-transition between each two consecutive segments.
-
-        :param: Nfa aut: Segment automaton to noodlify.
-        :param: Symbol epsilon: Epsilon symbol to noodlify for.
-        :param: bool include_empty: Whether to also include empty noodles.
-        :return: List of automata: A list of all (non-empty) noodles.
-        """
-        noodle_segments = []
-        cdef NoodleSequence c_noodle_segments = mata.noodlify(dereference(aut.thisptr.get()), symbol, include_empty)
-        for c_noodle in c_noodle_segments:
-            noodle = []
-            for c_noodle_segment in c_noodle:
-                noodle_segment = Nfa()
-                noodle_segment.thisptr = c_noodle_segment
-                noodle.append(noodle_segment)
-
-            noodle_segments.append(noodle)
-
-        return noodle_segments
-
-    @classmethod
-    def noodlify_for_equation(cls, left_side_automata: list[Nfa], Nfa right_side_automaton, include_empty = False, params = None):
+    def noodlify_for_equation(cls, left_side_automata: list[Nfa], Nfa right_side_automaton, vector[vector[size_t]] vars_locations, include_empty = False, params = None):
         """
         Create noodles for equation.
 
@@ -795,8 +795,12 @@ cdef class Nfa:
             c_left_side_automata.push_back((<Nfa>lhs_aut).thisptr.get())
         noodle_segments = []
         params = params or {}
+        #cdef vector[StateSet] vars_locs_vector
+        #for var_locations in vars_locations:
+        #    vars_locs_vector.push_back(StateSet(var_locations))
+
         cdef NoodleSequence c_noodle_segments = mata.noodlify_for_equation(
-            c_left_side_automata, dereference(right_side_automaton.thisptr.get()), include_empty,
+            c_left_side_automata, dereference(right_side_automaton.thisptr.get()), vars_locations, include_empty,
             {
                 k.encode('utf-8'): v.encode('utf-8') if isinstance(v, str) else v
                 for k, v in params.items()
