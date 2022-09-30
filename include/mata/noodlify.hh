@@ -45,7 +45,7 @@ using NoodleSequence = std::vector<Noodle>; ///< A sequence of noodles.
  * @param[in] include_empty Whether to also include empty noodles.
  * @return A list of all (non-empty) noodles.
  */
-NoodleSequence noodlify(const SegNfa& aut, Symbol epsilon, std::vector<std::vector<size_t>> variableLocations, bool include_empty = false);
+NoodleSequence noodlify(const SegNfa& aut, Symbol epsilon, std::vector<std::vector<size_t>> variableLocations, EnumAlphabet &alph, bool include_empty = false, bool useBits = true);
 
 /**
  * @brief Create noodles for left and right side of equation.

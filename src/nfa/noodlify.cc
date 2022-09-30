@@ -16,6 +16,7 @@
  */
 
 #include <iostream>
+#include <bitset>
 
 #include <mata/nfa.hh>
 #include <mata/noodlify.hh>
@@ -43,7 +44,7 @@ size_t get_num_of_permutations(const SegNfa::Segmentation::EpsilonDepthTransitio
 
 } // namespace
 
-SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon, std::vector<std::vector<size_t>> variableLocations, bool include_empty) {
+SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon, std::vector<std::vector<size_t>> variableLocations, EnumAlphabet &alph, bool include_empty, bool useBits) {
     Segmentation segmentation{ aut, epsilon };
     const auto& segments{ segmentation.get_segments_raw() };
 
@@ -111,10 +112,14 @@ SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon,
     //aut.print_to_DOT(std::cout);
     std::ostream &afaOutput = std::cerr;
 
-    afaOutput << "@AFA-explicit" << std::endl
-              //<< "%Alphabet-chars" << std::endl
-              << "%Alphabet-numbers" << std::endl
-              << "%Tracks-auto" << std::endl;
+    if (!useBits) {
+        afaOutput << "@AFA-explicit" << std::endl
+                //<< "%Alphabet-chars" << std::endl
+                << "%Alphabet-numbers" << std::endl
+                << "%Tracks-auto" << std::endl;
+    } else {
+        afaOutput << "@AFA-bits" << std::endl;
+    }
 
     afaOutput << "%Initial (";
     bool isThisFirstState = true;
@@ -224,21 +229,61 @@ SegNfa::NoodleSequence SegNfa::noodlify(const SegNfa& aut, const Symbol epsilon,
     }
     afaOutput << std::endl;
 
+    std::unordered_map<Symbol, Symbol> symbolRemapping;
+    Symbol newSymbol = 0;
+    size_t neededBits = 1;
+    if (alph.get_symbols().size() > 1) {
+        neededBits = 32 - __builtin_clz(alph.get_symbols().size() - 1);
+    }
+    auto remapSymbol = [&symbolRemapping, &newSymbol, &useBits, neededBits](Symbol symToRemap, size_t trackNum) {
+        auto it = symbolRemapping.find(symToRemap);
+        Symbol remappedSymbol;
+        if (it == symbolRemapping.end()) {
+            symbolRemapping[symToRemap] = newSymbol;
+            remappedSymbol = newSymbol++;
+        } else {
+            remappedSymbol = it->second;
+        }
+
+        std::stringstream result;
+        if (useBits) {
+            std::string symBits = std::bitset<32>(remappedSymbol).to_string();
+            
+            size_t startingBit = trackNum*neededBits;
+            for (size_t i = 0; i < neededBits; ++i) {
+                if (i != 0) {
+                    result << " & ";
+                }
+                if (symBits[31-i] == '0') {
+                    result << "!";
+                }
+                result << "a" << startingBit + i;
+            }
+        } else {
+            result << remappedSymbol << "@t" << trackNum;
+        }
+        return result.str();
+    };
+
     auto numOfVars = variableLocations.size();
     for (size_t varNum = 0; varNum < numOfVars; ++varNum) {
         for (auto varLoc : variableLocations[varNum]) {
             const Nfa &varAut = segments[varLoc];
             for (State s : segmentReachableStates[varLoc]) {
+                const auto &transFromState = varAut.get_transitions_from(s);
+                if (transFromState.size() == 0) {
+                    continue; // we do not print transitions from s, as there are no transitions to print
+                }
                 afaOutput << "q" << s << " ";
                 bool isFirstTran = true;
-                for (const TransSymbolStates &tran : varAut.get_transitions_from(s)) {
+                for (const TransSymbolStates &tran : transFromState) {
                     if (isFirstTran) {
                         isFirstTran = false;
                     } else {
                         afaOutput << " | ";
                     }
                     //afaOutput << "(" << (char) tran.symbol << "@t" << varNum << " & (";
-                    afaOutput << "(" << tran.symbol << "@t" << varNum << " & (";
+                    afaOutput << "(" << remapSymbol(tran.symbol, varNum) << " & (";
                     bool isFirstStateTo = true;
                     for (State r : tran.states_to) {
                         if (isFirstStateTo) {
@@ -363,7 +408,17 @@ std::vector<std::vector<size_t>> variableLocations,
             product_pres_eps_trans = invert(product_pres_eps_trans);
         }
     }
-    return noodlify(product_pres_eps_trans, epsilon, variableLocations, include_empty);
+    bool useBits = true;
+    if (util::haskey(params, "afa-type")) {
+        const std::string& type_value = params.at("afa-type");
+        if (type_value == "bits") {
+            useBits = true;
+        }
+        if (type_value == "tracks") {
+            useBits = false;
+        }
+    }
+    return noodlify(product_pres_eps_trans, epsilon, variableLocations, alphabet, include_empty, useBits);
 }
 
 SegNfa::NoodleSequence SegNfa::noodlify_for_equation(const AutPtrSequence& left_automata, const Nfa& right_automaton,
@@ -416,5 +471,15 @@ SegNfa::NoodleSequence SegNfa::noodlify_for_equation(const AutPtrSequence& left_
             product_pres_eps_trans = invert(product_pres_eps_trans);
         }
     }
-    return noodlify(product_pres_eps_trans, epsilon, variableLocations, include_empty);
+    bool useBits = true;
+    if (util::haskey(params, "afa-type")) {
+        const std::string& type_value = params.at("afa-type");
+        if (type_value == "bits") {
+            useBits = true;
+        }
+        if (type_value == "tracks") {
+            useBits = false;
+        }
+    }
+    return noodlify(product_pres_eps_trans, epsilon, variableLocations, alphabet, include_empty, useBits);
 }
