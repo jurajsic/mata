@@ -57,9 +57,9 @@ endif()
 enable_language(CXX)
 
 # get the git revision
-include(GetGitRevisionDescription)
-git_describe(GIT_DESCRIBE)
-get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+# include(GetGitRevisionDescription)
+# git_describe(GIT_DESCRIBE)
+# get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 
 message("-- Default C++ compiler: ${CMAKE_CXX_COMPILER}")
 
@@ -72,8 +72,8 @@ include(CTest)
 enable_testing()
 
 # if(CMAKE_COMPILER_IS_GNUCXX)
-    include(CodeCoverage)
-    setup_target_for_coverage(${PROJECT_NAME}_coverage tests coverage)
+    # include(CodeCoverage)
+    # setup_target_for_coverage(${PROJECT_NAME}_coverage tests coverage)
 # endif()
 
 ##############################################################################
