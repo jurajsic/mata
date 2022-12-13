@@ -49,4 +49,4 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     target_link_libraries(re2 pthread)
 endif()
 
-target_include_directories(re2 PUBLIC ./)
+target_include_directories(re2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

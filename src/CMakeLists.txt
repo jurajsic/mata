@@ -44,7 +44,7 @@ endif()
 
 include_directories(../include)
 include_directories(../3rdparty/) # this is here since it is clearer to include re2/utils than just utils
-include_directories(../3rdparty/cudd/cudd)
+# include_directories(../3rdparty/cudd/cudd)
 include_directories(../3rdparty/re2)
 include_directories(../3rdparty/simlib/include)
 
@@ -94,8 +94,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 	target_link_libraries(libmata pthread)
 endif()
 
-add_dependencies(libmata cudd_library)
-target_link_libraries(libmata simlib ${CMAKE_BINARY_DIR}/3rdparty/cudd/lib/libcudd.a) # ${CUDD} ${CUDD++})
+# add_dependencies(libmata cudd_library)
+target_link_libraries(libmata simlib re2 cudd)
 # target_link_libraries(tests libmata re2 simlib ${CMAKE_BINARY_DIR}/3rdparty/cudd/lib/libcudd.a)
 # include(Catch)
 # catch_discover_tests(tests)

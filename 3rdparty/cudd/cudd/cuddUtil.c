@@ -3057,7 +3057,7 @@ cuddNodeArray(
   int *n)
 {
     DdNodePtr *table;
-    int size, retval;
+    int size;
 
     size = ddDagInt(Cudd_Regular(f));
     table = ALLOC(DdNodePtr, size);
@@ -3066,8 +3066,7 @@ cuddNodeArray(
 	return(NULL);
     }
 
-    retval = cuddNodeArrayRecur(f, table, 0);
-    assert(retval == size);
+    cuddNodeArrayRecur(f, table, 0);
 
     *n = size;
     return(table);

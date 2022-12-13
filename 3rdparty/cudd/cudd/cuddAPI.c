@@ -419,7 +419,6 @@ Cudd_zddVarsFromBddVars(
     int res;
     int i, j;
     int allnew;
-    int *permutation;
 
     if (multiplicity < 1) {
         dd->errorCode = CUDD_INVALID_ARG;
@@ -444,6 +443,7 @@ Cudd_zddVarsFromBddVars(
 	    dd->univ[i]->index = dd->invpermZ[i];
 	}
     } else {
+        int *permutation;
 	permutation = ALLOC(int,dd->sizeZ);
 	if (permutation == NULL) {
 	    dd->errorCode = CUDD_MEMORY_OUT;
@@ -3302,7 +3302,7 @@ Cudd_PrintInfo(
     retval = fprintf(fp,"Time for garbage collection: %.2f sec\n",
 		     ((double)Cudd_ReadGarbageCollectionTime(dd)/1000.0));
     if (retval == EOF) return(0);
-    retval = fprintf(fp,"Reorderings so far: %d\n", dd->reorderings);
+    retval = fprintf(fp,"Reorderings so far: %u\n", dd->reorderings);
     if (retval == EOF) return(0);
     retval = fprintf(fp,"Time for reordering: %.2f sec\n",
 		     ((double)Cudd_ReadReorderingTime(dd)/1000.0));

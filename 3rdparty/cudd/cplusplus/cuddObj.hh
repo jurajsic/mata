@@ -165,7 +165,7 @@ public:
     BDD(Capsule *cap, DdNode *bddNode);
     BDD(Cudd const & manager, DdNode *ddNode);
     BDD(const BDD &from);
-    BDD operator=(const BDD& right);
+    BDD& operator=(const BDD& right);
     bool operator<=(const BDD& other) const;
     bool operator>=(const BDD& other) const;
     bool operator<(const BDD& other) const;
@@ -303,7 +303,7 @@ public:
     ADD(Capsule *cap, DdNode *bddNode);
     ADD(Cudd const & manager, DdNode *ddNode);
     ADD(const ADD &from);
-    ADD operator=(const ADD& right);
+    ADD& operator=(const ADD& right);
     // Relational operators
     bool operator<=(const ADD& other) const;
     bool operator>=(const ADD& other) const;
@@ -390,7 +390,7 @@ public:
     ZDD();
     ZDD(const ZDD &from);
     ~ZDD();
-    ZDD operator=(const ZDD& right);
+    ZDD& operator=(const ZDD& right);
     bool operator==(const ZDD& other) const;
     bool operator!=(const ZDD& other) const;
     bool operator<=(const ZDD& other) const;
@@ -526,7 +526,7 @@ public:
     void bddRealignEnable(void) const;
     void bddRealignDisable(void) const;
     ADD background(void) const;
-    void SetBackground(ADD bg) const;
+    void SetBackground(const ADD& bg) const;
     unsigned int ReadCacheSlots(void) const;
     double ReadCacheUsedSlots(void) const;
     double ReadCacheLookUps(void) const;

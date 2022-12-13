@@ -425,7 +425,7 @@ BDD::BDD(Cudd const & manager, DdNode *bddNode) : ABDD(manager,bddNode) {}
 BDD::BDD(const BDD &from) : ABDD(from) {}
 
 
-BDD
+BDD&
 BDD::operator=(
   const BDD& right)
 {
@@ -710,7 +710,7 @@ ADD::ADD(Cudd const & manager, DdNode *bddNode) : ABDD(manager,bddNode) {}
 ADD::ADD(const ADD &from) : ABDD(from) {}
 
 
-ADD
+ADD&
 ADD::operator=(
   const ADD& right)
 {
@@ -947,7 +947,7 @@ ZDD::~ZDD() {
 } // ZDD::~ZDD
 
 
-ZDD
+ZDD&
 ZDD::operator=(
   const ZDD& right)
 {
@@ -1255,11 +1255,13 @@ Cudd&
 Cudd::operator=(
   const Cudd& right)
 {
-    right.p->ref++;
-    if (--p->ref == 0) {	// disconnect self
-	delete p;
+    if (this != &right) {
+        right.p->ref++;
+        if (--p->ref == 0) {  // disconnect self
+            delete p;
+        }
+        p = right.p;
     }
-    p = right.p;
     return *this;
 
 } // Cudd::operator=
@@ -1847,8 +1849,7 @@ Cudd::background() const
 
 
 void
-Cudd::SetBackground(
-  ADD bg) const
+Cudd::SetBackground(const ADD& bg) const
 {
     DdManager *mgr = p->manager;
     if (mgr != bg.manager()) {
