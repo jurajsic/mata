@@ -91,7 +91,7 @@ set_target_properties(libmata PROPERTIES
 # )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	target_link_libraries(libmata pthread)
+	target_link_libraries(libmata PUBLIC pthread)
 endif()
 
 # add_dependencies(libmata cudd_library)
