@@ -72,7 +72,6 @@ set_target_properties(libmata PROPERTIES
   CLEAN_DIRECT_OUTPUT 1
 )
 
-<<<<<<< HEAD
 # add_executable(tests
 # 	tests-main.cc
 # 	tests-mintermization.cc
@@ -89,25 +88,6 @@ set_target_properties(libmata PROPERTIES
 # 	strings/tests-nfa-string-solving.cc
 # 	rra/tests-rrt.cc
 # )
-=======
-add_executable(tests
-	tests-main.cc
-	tests-mintermization.cc
-	tests-parser.cc
-	tests-re2parser.cc
-	tests-ord-vector.cc
-	tests-number-predicate.cc
-	tests-synchronized-iterator.cc
-	afa/tests-afa.cc
-	nfa/tests-nfa.cc
-	nfa/tests-nfa-concatenation.cc
-	nfa/tests-nfa-intersection.cc
-	strings/tests-nfa-noodlification.cc
-	strings/tests-nfa-segmentation.cc
-	strings/tests-nfa-string-solving.cc
-	rra/tests-rrt.cc
-)
->>>>>>> devel
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 	target_link_libraries(libmata PUBLIC pthread)
