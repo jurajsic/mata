@@ -1,5 +1,7 @@
 name: Python-Binding (build-&-test)
 
+permissions: write-all
+
 on:
   push:
     branches:
@@ -18,7 +20,14 @@ jobs:
         python-version: ["3.9"]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout latest version
+        uses: actions/checkout@v2
+        with:
+          ref: devel
+
+      - name: Add some version to VERSION file (since it cannot be inferred from git)
+        run: |
+          echo "0.0.0" > VERSION
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
@@ -43,3 +52,17 @@ jobs:
       - name: Run tests
         run: |
           make -C bindings/python test
+
+      - name: Install runner for jupyter notebooks
+        run: |
+          python3 -m pip install ipykernel
+          python3 -m ipykernel install --user
+          python3 -m pip install numpy==1.23.3
+          python3 -m pip install seaborn==0.12.0
+          python3 -m pip install papermill pandas
+
+      - name: Test the jupyter notebooks
+        run: |
+          papermill ./examples/notebooks/example-01-ws1s-formulae.ipynb out.ipynb
+          papermill ./examples/notebooks/example-02-redos-attacks.ipynb out.ipynb
+          papermill ./examples/notebooks/example-03-exploring-maze.ipynb out.ipynb

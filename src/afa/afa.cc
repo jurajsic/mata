@@ -547,38 +547,6 @@ size_t Afa::trans_size() const
 	return result;
 } // trans_size() }}}
 
-/** This function takes all the initial states and creates
-* a corresponding upward-closed set
-* @return closed set of initial nodes
-*/
-StateClosedSet Afa::get_initial_nodes(void) const
-{
-	StateClosedSet result(upward_closed_set, 0, transitionrelation.size()-1);
-	for(auto state : initialstates)
-	{
-		result.insert(state);
-	}
-	return result;
-} // get_initial_nodes() }}}
-
-/** This function returns a downward-closed set of all
-* the nodes which are not initial
-* @return closed set of non-initial nodes
-*/
-StateClosedSet Afa::get_non_initial_nodes(void) const
-{
-	OrdVec<State> subresult{};
-	auto transSize = transitionrelation.size();
-	for(State state = 0; state < transSize; ++state)
-	{
-		if(!has_initial(state))
-		{
-			subresult.insert(state);
-		}  
-	}
-	return StateClosedSet(downward_closed_set, 0, transitionrelation.size()-1, subresult);
-} // get_non_initial_nodes() }}}
-
 /** This function returns an upward-closed set of all
 * the nodes which are non-final
 * @return closed set of non-final nodes
@@ -676,7 +644,7 @@ bool Mata::Afa::antichain_concrete_forward_emptiness_test_old(const Afa& aut)
     // We will perform each operation directly over antichains.
     // Note that the fixed point always exists so the while loop always terminates.
     StateClosedSet goal = aut.get_non_final_nodes();
-    StateClosedSet current = StateClosedSet();
+    StateClosedSet current = StateClosedSet(upward_closed_set, 0, aut.get_num_of_states()-1);
     StateClosedSet next = aut.get_initial_nodes();
 
     while(current != next)
@@ -749,7 +717,7 @@ bool Mata::Afa::antichain_concrete_backward_emptiness_test_old(const Afa& aut)
 	// We will perform each operation directly over antichains
 	// Note that the fixed point always exists so the while loop always terminates
 	StateClosedSet goal = aut.get_non_initial_nodes();
-	StateClosedSet current = StateClosedSet();
+	StateClosedSet current = StateClosedSet(downward_closed_set, 0, aut.get_num_of_states()-1);
 	StateClosedSet next = aut.get_final_nodes();
 
 	while(current != next)
@@ -866,10 +834,18 @@ Mata::Parser::ParsedSection Mata::Afa::serialize(
 
 	// construct initial states
 	std::vector<std::string> init_states;
-	for (State s : aut.initialstates) {
-		bool_str_pair bsp = state_namer(s);
-		if (!bsp.first) { throw std::runtime_error("cannot translate state " + std::to_string(s)); }
-		init_states.push_back(bsp.second);
+	for (const Node& node : aut.initialstates) {
+		std::string init_res = "( ";
+		bool first = true;
+		for (State s : node) {
+			bool_str_pair bsp = state_namer(s);
+			if (!bsp.first) { throw std::runtime_error("cannot translate state " + std::to_string(s)); }
+			if(!first) {init_res += " & ";}
+			init_res += bsp.second;
+			first = false;		
+		}
+		init_res += " )";
+		init_states.push_back(init_res);
 	}
 	parsec.dict["Initial"] = init_states;
 
@@ -925,7 +901,6 @@ void Mata::Afa::minimize(
   assert(false);
 } // minimize }}}
 
-
 Afa Mata::Afa::construct(
 	const Mata::Parser::ParsedSection&  parsec,
 	Alphabet*                            alphabet,
@@ -964,7 +939,7 @@ Afa Mata::Afa::construct(
 	if (parsec.dict.end() != it) {
 		for (const auto& str : it->second) {
 			State state = get_state_name(str);
-			aut.initialstates.insert(state);
+			aut.initialstates.insert(Node{state});
 		}
 	}
 
@@ -1059,10 +1034,36 @@ Afa Mata::Afa::construct(
         return tgt_node;
     };
 
-    for (const auto& str : inter_aut.initial_formula.collect_node_names())
-    {
-        State state = get_state_name(str);
-        aut.initialstates.insert(state);
+
+    const FormulaGraph* init_graph = &inter_aut.initial_formula;
+    if (is_node_operator(init_graph->node, FormulaNode::AND)) { // initial formula is just conjunction
+        for (const auto& str : init_graph->collect_node_names())
+        {
+            State state = get_state_name(str);
+            aut.add_initial(state);
+        }
+    } else { // initial formula is dnf
+        while (is_node_operator(init_graph->node, FormulaNode::OR))
+        {  // Processes each clause separately
+            assert(init_graph->children[1].node.is_operand() ||
+                   is_node_operator(init_graph->children[1].node, FormulaNode::AND) ||
+                   "Clause should be conjunction or single state");
+            // Conjunction is the right son of initent node
+            Node initial_node;
+            for (const auto s : init_graph->children[1].collect_node_names())
+                initial_node.insert(get_state_name(s));
+            aut.add_initial(initial_node);
+
+            // jump to another clause which is the left son of initent node
+            init_graph = &init_graph->children.front();
+        }
+        assert(init_graph->node.is_operand() ||
+               is_node_operator(init_graph->node, FormulaNode::AND) ||
+                       "Remaining clause should be conjunction or single element");
+        Node initial_node;
+        for (const auto s : init_graph->collect_node_names())
+            initial_node.insert(get_state_name(s));
+        aut.add_initial(initial_node);
     }
 
     for (const auto& str : inter_aut.final_formula.collect_node_names())
@@ -1167,8 +1168,11 @@ bool Mata::Afa::is_complete(const Afa& aut, const Alphabet& alphabet)
 
 bool Mata::Afa::accepts_epsilon(const Afa& aut)
 { // {{{
-	for (State st : aut.initialstates) {
-		if (haskey(aut.finalstates, st)) return true;
+	for (const Node &node : aut.initialstates) {
+		if(node.IsSubsetOf(aut.finalstates))
+		{
+			return true;
+		}
 	}
 
 	return false;
